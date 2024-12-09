@@ -1,96 +1,81 @@
+//websocket连接封装
 
-//web年代ocket连接封装
+//全局socket连接池
+const socketInstaceMap = new Set();
 
-//全局年代ocket连接池
-con年代t 年代ocketIn年代tace米ap = 新 Set();
-
-export interface Web年代ocketOption {
+export interface WebSocketOption {
 	url: string; //webscoket连接地址
 	heartTime?: number; //心跳间隔时间
-	tryTime年代?: number; //重试次数
+	tryTimes?: number; //重试次数
 }
-con年代t noop = 函数 (data: any) {};
+const noop = function (data: any) {};
 
 //订阅发布类
-cla年代年代 年代ub年代cribeCenter {
-	sub年代cribeCenter: any = {};
-构造函数(){}
-	di年代patch(type, data) {
-		if(thi年代.年代ub年代cribeCenter[type]){
+class SubscribeCenter {
+	subscribeCenter: any = {};
+	constructor() {}
+	dispatch(type, data) {
+		if(this.subscribeCenter[type]){
 			//存在相关类型订阅者，触发订阅
-			for (let callback of thi年代.年代ub年代cribeCenter[type]) {
-如果有回调函数，则调用它并传入数据。
+			for (let callback of this.subscribeCenter[type]) {
+				callback && callback(data);
 			}
 		}
 		
 	}
-	sub年代cribe(type, callback) {
+	subscribe(type, callback) {
 		//添加类型订阅者
-		if (!thi年代.年代ub年代cribeCenter[type]) {
-			thi年代.年代ub年代cribeCenter[type] = 新 Set();
+		if (!this.subscribeCenter[type]) {
+			this.subscribeCenter[type] = new Set();
 		}
-		thi年代.年代ub年代cribeCenter[type].add(callback);
-返回{
+		this.subscribeCenter[type].add(callback);
+		return {
 			//取消订阅
-退订(){
-				thi年代.年代ub年代cribeCenter[type].remove(callback)
+			unsubscribe(){
+				this.subscribeCenter[type].remove(callback)
 			}
 		}
 	}
 	
 }
-//年代ocket连接实例
-export cla年代年代 w年代Connnect {
-	connetcTa年代k: UniApp.SocketTask = null;
-	sub年代cribeCenter: SubscribeCenter = 新 SubscribeCenter(); //维护自己的订阅中心
-url:字符串;
+//socket连接实例
+export class wsConnnect {
+	connetcTask: UniApp.SocketTask = null;
+	subscribeCenter: SubscribeCenter = new SubscribeCenter(); //维护自己的订阅中心
+	url: string;
 	hearTime: number;
-tryTime年代:数量;
+	tryTimes: number;
 	heartTimeId: ReturnType<typeof setTimeout>;
-心形文本：任何 = {类型：'心形'，内容：'发送'
-`closeTimeId`：返回类型为 `setTimeout` 的函数。
-尝试时间ID：返回类型为 `setTimeout` 的类型。
-`onError`：(data: any) => void = noop；
-
-意思是：`onError` 函数，参数类型为任意类型，返回值为 void，默认值为 noop。noop 是一个 JavaScript 函数，它不做任何操作，相当于一个空函数。
-`onOpen`：(data: any) => void = noop；
-
-这是一个JavaScript函数，用于处理浏览器窗口或框架的打开事件。`onOpen` 是事件处理程序名称，表示当窗口或框架打开时执行该函数。`any` 是类型推断符，表示函数可以处理任何类型的数据。`noop` 是一个函数，表示不做任何操作。
-`onClose`：(data: any) => void = noop；
-
-意思是：`onClose` 是一个函数，用于在关闭弹出框时执行某些操作。这里的 `noop` 是一个函数，表示不做任何操作。也就是说，如果弹出框被关闭，这个函数不会执行任何操作。
-`onMessage`：(data: any) => void = noop；
-
-意思是：`onMessage` 函数，参数为 `data`，返回值为 `void`，默认值为 `noop`。这里的 `noop` 表示一个空函数，即不做任何操作。
-构造函数（options: WebSocketOption）：
-代码中的 `options` 是一个对象，其中包含了三个属性：`url`、`heartTime` 和 `tryTimes`。
-
-`url` 属性表示请求的 URL，这是一个字符串类型的值。
-
-`heartTime` 属性表示心跳时间，默认值为 10000 毫秒，表示每隔 10 秒向服务器发送一次心跳信息。
-
-`tryTimes` 属性表示重试次数，默认值为 6，表示如果请求失败，将尝试重试 6 次。
-If (!url) {
+	heartText: any = { type: 'heart', content: 'send' };
+	cloeseTimeId: ReturnType<typeof setTimeout>;
+	tryTimeId: ReturnType<typeof setTimeout>;
+	onError: (data: any) => void = noop;
+	onOpen: (data: any) => void = noop;
+	onClose: (data: any) => void = noop;
+	onMessage: (data: any) => void = noop;
+	constructor(options: WebSocketOption) {
+		const { url, heartTime = 10000, tryTimes = 6 } = options;
+		if (!url) {
 			throw new Error('必须传入url地址');
 		}
-这一点。Url = Url；
+		this.url = url;
 		this.hearTime = heartTime;
 		this.tryTimes = tryTimes;
-如果（socketInstaceMap 数组的大小大于 4）：
+		if (socketInstaceMap.size > 4) {
 			console.error('仅支持5个websocket连接');
-返回null;
+			return null;
 		}
 		this.initSocket();
 	}
 	//初始化连接
 	initSocket(): UniApp.SocketTask {
-如果（本对象的 connectTask 方法尚未完成执行）：
-返回此连接任务。
+		if (this.connetcTask) {
+			return this.connetcTask;
 		}
 		this.connetcTask = uni.connectSocket({
 			url: this.url,
-成功：（）=> {}，
-失败：（）=> {}
+			success: () => {},
+			fail: () => {}
 		});
 		this.connetcTask.onMessage(({ data }) => {
 			this.resetHeat();
@@ -125,7 +110,7 @@ If (!url) {
 		this.connetcTask.onClose((err) => {
 			this.onClose(err);
 		});
-返回此连接任务。
+		return this.connetcTask;
 	}
 
 	//发送心跳
@@ -184,7 +169,7 @@ If (!url) {
 	subscribe(a: string, b: Function): void;
 	//subscipt
 	subscribe(a: string | Function, b: Function = noop) {
+		
 		this.subscribeCenter.subscribe(a, b);
 	}
 }
-
